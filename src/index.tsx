@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import React, { Component, ReactElement } from 'react';
 
 interface Props {
   playing: boolean;
@@ -8,24 +8,17 @@ interface Props {
   title?: string;
   time: number;
   onListen?: (time: number) => void;
-  onLoad?: (duration: number) => void;
-}
-
-interface AudioEl {
-  currentTime: number;
-  play: () => void;
-  pause: () => void;
-  duration: number;
-
-  addEventListener: (name: string, callback: (e: Event) => void) => void;
+  onLoad?: (audio: HTMLAudioElement) => void;
+  onEnded?: () => void;
 }
 
 export default class ReactAudioPlayer extends Component<Props> {
-  audioEl: AudioEl | null = null;
-  listenTracker: NodeJS.Timer | null = null;
-  onPlay: any;
+  audioEl: HTMLAudioElement | undefined = undefined;
+
+  listenTracker: NodeJS.Timer | undefined = undefined;
 
   componentDidMount() {
+    let {onEnded, onLoad} = this.props;
     const audio = this.audioEl;
 
     if (!audio) {
@@ -35,37 +28,36 @@ export default class ReactAudioPlayer extends Component<Props> {
     // When audio play starts
     audio.addEventListener('play', (e: Event) => {
       this.setListenTrack();
-      //this.props.onPlay(e);
+      // this.props.onPlay(e);
     });
 
     // When unloading the audio player (switching to another src)
     audio.addEventListener('abort', (e: Event) => {
       this.clearListenTrack();
-      //this.props.onAbort(e);
+      // this.props.onAbort(e);
     });
 
     // When the file has finished playing to the end
     audio.addEventListener('ended', (e: Event) => {
       this.clearListenTrack();
-      //this.props.onEnded(e);
+      onEnded ? onEnded() : null;
     });
 
     // When the user pauses playback
     audio.addEventListener('pause', (e: Event) => {
       this.clearListenTrack();
-      //this.props.onPause(e);
+      // this.props.onPause(e);
     });
 
     audio.addEventListener('loadedmetadata', (e: Event) => {
-      if (this.props.onLoad) {
-        this.props.onLoad(audio.duration);
-      }
+      onLoad ? onLoad(audio) : null;
     });
   }
 
   componentWillReceiveProps(nextProps: Props) {
-    //this.updateVolume(nextProps.volume);
-    if (this.props.playing !== nextProps.playing && this.audioEl) {
+    const { playing, time } = this.props;
+
+    if (playing !== nextProps.playing && this.audioEl) {
       if (nextProps.playing) {
         this.audioEl.play();
       } else {
@@ -73,8 +65,8 @@ export default class ReactAudioPlayer extends Component<Props> {
       }
     }
 
-    if (nextProps.time && nextProps.time !== this.props.time && this.audioEl) {
-      let difference = Math.abs(nextProps.time - this.props.time);
+    if (nextProps.time && nextProps.time !== time && this.audioEl) {
+      const difference = Math.abs(nextProps.time - this.props.time);
 
       // Skip seeks over 1 second
       if (difference > 1) {
@@ -87,10 +79,10 @@ export default class ReactAudioPlayer extends Component<Props> {
    * Set an interval to call props.onListen every props.listenInterval time period
    */
   setListenTrack() {
-    if (!this.listenTracker) {
-      const listenInterval = this.props.listenInterval;
+    if (this.listenTracker === undefined) {
+      const { listenInterval } = this.props;
       this.listenTracker = setInterval(() => {
-        if (this.props.onListen && this.audioEl) {
+        if (this.props.onListen !== undefined && this.audioEl !== undefined) {
           this.props.onListen(this.audioEl.currentTime);
         }
       }, listenInterval);
@@ -101,23 +93,26 @@ export default class ReactAudioPlayer extends Component<Props> {
    * Clear the onListen interval
    */
   clearListenTrack() {
-    if (this.listenTracker) {
+    if (this.listenTracker !== undefined) {
       clearInterval(this.listenTracker);
-      this.listenTracker = null;
+      this.listenTracker = undefined;
     }
   }
 
-  render() {
-    // Set lockscreen / process audio title on devices
-    const title = this.props.title ? this.props.title : this.props.src;
+  render(): ReactElement {
+    const {
+      title, src, playing, className,
+    } = this.props;
 
     return (
       <audio
-        autoPlay={this.props.playing}
-        className={this.props.className}
-        ref={(ref) => { this.audioEl = ref; }}
-        src={this.props.src}
-        title={title}
+        autoPlay={playing}
+        className={className}
+        ref={(ref) => { this.audioEl = ref || undefined; }}
+        src={src}
+        // Set lockscreen / process audio title on devices
+        title={title || src}
+        preload='metadata'
       >
         <p>Your browser does not support the <code>audio</code> element.</p>
       </audio>
