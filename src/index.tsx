@@ -15,7 +15,7 @@ interface Props {
 export default class ReactAudioPlayer extends Component<Props> {
   audioEl: HTMLAudioElement | undefined = undefined;
 
-  listenTracker: NodeJS.Timer | undefined = undefined;
+  listenTracker: number | undefined = undefined;
 
   componentDidMount() {
     let {onEnded, onLoad} = this.props;
